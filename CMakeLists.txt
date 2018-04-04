@@ -1,0 +1,16 @@
+cmake_minimum_required(VERSION 3.8)
+project(NeuralNetwork)
+find_package (Eigen3 REQUIRED NO_MODULE)
+set(CMAKE_CXX_STANDARD 11)
+
+IF(CMAKE_BUILD_TYPE MATCHES Debug)
+    message("debug mode")
+    set(GCC_DEBUG_COMPILE_FLAGS "-DDEBUG=1")
+    set( CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} ${GCC_DEBUG_COMPILE_FLAGS}" )
+ENDIF(CMAKE_BUILD_TYPE MATCHES Debug)
+IF(CMAKE_BUILD_TYPE MATCHES Release)
+    message("Release mode")
+ENDIF(CMAKE_BUILD_TYPE MATCHES Release)
+
+set(SOURCE_FILES main.cpp NeuralNetwork.hpp NeuralNetwork.cpp debug.hpp)
+add_executable(NeuralNetwork ${SOURCE_FILES})
