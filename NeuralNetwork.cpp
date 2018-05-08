@@ -25,20 +25,11 @@
 #include "NeuralNetwork.hpp"
 #include <random>
 #include <iostream>
+#include <set>
 /**
- * Explaination
- * The weight matrix _weights is an vector of matrices
- * Each element in a row is the incoming weight to a particular node ie
- * a row contains the weights incident on the next neuron
- *
- * This allows the properagtion to be performed by computing _w * _a
- * Where _w is the weight matrix and _a is the input from the previous layer
- *
- */
-/**
- *
- * @param layers
- * @param dense
+ * Constructor for the Neural network
+ * @param layers, the size of each layer including input and output layers
+ * @param dense, default true, the network will be fully connected TODO implementation for nonfully connected
  */
 NeuralNetwork::NeuralNetwork(std::vector<int> layers, float learningRate, bool dense) {
     int i, j, k;
@@ -66,13 +57,13 @@ NeuralNetwork::NeuralNetwork(std::vector<int> layers, float learningRate, bool d
 //        std::cout << _weights[i] << std::endl;
 //        exit(0);
     }
-    std::cout << "Bias" << std::endl;
+//    std::cout << "Bias" << std::endl;
     for (i = 0; i < _bias.size(); i++) {
         for (j = 0; j < _bias[i].size(); j++) {
             _bias[i][j] = (float) dis(gen);
         }
-        std::cout << "Layer " << i << std::endl;
-        std::cout << _bias[i] << std::endl << std::endl;
+//        std::cout << "Layer " << i << std::endl;
+//        std::cout << _bias[i] << std::endl << std::endl;
     }
     _layersSize = layers;
 }
@@ -81,31 +72,30 @@ NeuralNetwork::NeuralNetwork(std::vector<int> layers, float learningRate, bool d
  * @param input, the initial input
  * @param output, a reference a matrix where the result will be stored
  */
-void NeuralNetwork::predict(Eigen::MatrixXf input, Eigen::MatrixXf& output) {
-//    std::cout << std::endl << "Start of Prediction" << std::endl;
+void NeuralNetwork::predict(Eigen::MatrixXf& input, Eigen::MatrixXf& output) {
     int i;
     assert(_weights.size() == _bias.size());
-//    std::cout << "Input" << std::endl;
-//    std::cout << input << std::endl;
     _a[0] = input;
     for(i = 0; i < _weights.size(); i++) {
-//        std::cout << "Weights" << std::endl;
-//        std::cout << _weights[i] << std::endl;
-//        std::cout << "LayerInput" << std::endl;
-//        std::cout << _a[i] << std::endl;
-//        std::cout << "Bias" << std::endl << _bias[i] << std::endl;
-        _z[i] = (_weights[i] * _a[i]).colwise() + _bias[i];// + _bias[i];
-//        std::cout << "LayerOutput" << std::endl << _z[i] << std::endl;
-//        std::cout << "Z[" << i << "] = " << _z[i] << std::endl;
+        _z[i] = (_weights[i] * _a[i]).colwise() + _bias[i];
         _a[i + 1] = _z[i];
         applyActivationFunction(_a[i + 1]);
-//        exit(0);
-//        std::cout << "A[" << i + 1 << "] = " << _a[i + 1] << std::endl;
     }
     output = _a[i];
-//    std::cout << "Input to first layer: " << std::endl << input << std::endl;
-//    std::cout << "Output to finallayer: " << std::endl << output << std::endl;
-//    std::cout << "End of Prediction" << std::endl << std::endl;
+}
+/**
+ * Set the activation function to use on each ouput neuron
+ * @param function, the function type
+ */
+void NeuralNetwork::setActivationFunction(ACTIVATION function) {
+    _activationFunction = function;
+}
+/**
+ * Get the Activation function that will be used
+ * @return ACTIVIATION, an enum
+ */
+NeuralNetwork::ACTIVATION NeuralNetwork::getActivationFunction() {
+    return _activationFunction;
 }
 
 /**
@@ -113,39 +103,37 @@ void NeuralNetwork::predict(Eigen::MatrixXf input, Eigen::MatrixXf& output) {
     * @param input, the input data <Input Layer> x <Datapoints>.
     * @param output, the expected output data <Output layer> x <datapoints>.
     */
-void NeuralNetwork::train(Eigen::MatrixXf& input, Eigen::MatrixXf& expectedOutput, long iterations) {
-    std::cout << std::endl << "Start of Training" << std::endl;
-    long it;
-    for(it = 0l; it < iterations; it++) {
-        Eigen::MatrixXf layerOutput;
-        long layerIndex;
-        predict(input, layerOutput);
+void NeuralNetwork::train(Eigen::MatrixXf& input, Eigen::MatrixXf& expectedOutput, bool printIteration) {
 
-        float cost;
-        if (it % 1000 == 0) {
-            cost = costFunction(expectedOutput, _a[getLayerSize() - 1]).array().sum()/expectedOutput.cols();
-            std::cout << "Network Cost: " << cost << std::endl;
-        }
-
-        for (layerIndex = ((long) getLayerSize()) - 1l; layerIndex > 0; layerIndex--) {
-            layerOutput = _a[layerIndex];
-            Eigen::MatrixXf previousdx;
-            if (layerIndex == ((long) getLayerSize()) - 1l) {
-                previousdx = costFunctionDerivative(expectedOutput, layerOutput); //error //delta(C)/delta(a^{L})
-            } else {
-                previousdx = _delta[layerIndex];
-                previousdx = _weights[layerIndex].transpose() * previousdx; // delta(z^{L})/delta(a^{L - 1}) * delta(C)/delta(z^{L}) = delta(C)/delta(z^{l})
-            }
-            _delta[layerIndex - 1] = previousdx.array() * sigmoidDerivativeMatrix(layerOutput).array(); //delta(C)/delta(z^{L}) * delta(z^{L})/delta(a^{L - 1}) = delta(C)/delta(a^{L - 1})
-            _deltaW[layerIndex - 1] = _a[layerIndex - 1] * _delta[layerIndex - 1].transpose();
-        }
-        for(int i = 0; i < _weights.size(); i++) {
-            _weights[i] = (_weights[i] + _learningRate * _deltaW[i].transpose());
-            _bias[i] = (_bias[i] + _learningRate * (_delta[i].rowwise().mean() ));
-        }
+    float cost;
+    long layerIndex;
+    Eigen::MatrixXf output;
+    predict(input, output);
+    if (printIteration) {
+        cost = costFunction(expectedOutput, _a[getLayerSize() - 1]).array().sum()/expectedOutput.cols();
+        std::cout << "Network Cost: " << cost << std::endl;
     }
-    std::cout << "End of Training" << std::endl << std::endl;
+    Eigen::MatrixXf layerOutput;
+
+    for (layerIndex = ((long) getLayerSize()) - 1l; layerIndex > 0; layerIndex--) {
+        layerOutput = _a[layerIndex];
+        Eigen::MatrixXf previousdx;
+        if (layerIndex == ((long) getLayerSize()) - 1l) {
+            previousdx = costFunctionDerivative(expectedOutput, layerOutput); //error //delta(C)/delta(a^{L})
+        } else {
+            previousdx = _delta[layerIndex];
+            previousdx = _weights[layerIndex].transpose() * previousdx; // delta(z^{L})/delta(a^{L - 1}) * delta(C)/delta(z^{L}) = delta(C)/delta(z^{l})
+        }
+        _delta[layerIndex - 1] = previousdx.array() * applyDerivativeActivationFunction(layerOutput).array(); //delta(C)/delta(z^{L}) * delta(z^{L})/delta(a^{L - 1}) = delta(C)/delta(a^{L - 1})
+        _deltaW[layerIndex - 1] = _a[layerIndex - 1] * _delta[layerIndex - 1].transpose();
+    }
+    for(int i = 0; i < _weights.size(); i++) {
+        _weights[i] = (_weights[i] + _learningRate * _deltaW[i].transpose());
+        _bias[i] = (_bias[i] + _learningRate * (_delta[i].rowwise().mean() ));
+    }
+
 }
+
 /**
  * Returns the number of neurons in the input layer.
  * @return int.
@@ -162,7 +150,7 @@ int NeuralNetwork::getOutputSize() {
 }
 /**
  * Get number of layers
- * @return
+ * @return unsigned long
  */
 unsigned long NeuralNetwork::getLayerSize() {
     return _layersSize.size();
@@ -198,24 +186,77 @@ Eigen::MatrixXf NeuralNetwork::costFunctionDerivative(Eigen::MatrixXf& expectedO
  * @param matrix
  */
 Eigen::MatrixXf NeuralNetwork::applyDerivativeActivationFunction(Eigen::MatrixXf& matrix) {
-    return matrix.unaryExpr(&sigmoidDerivative);
+
+    float (*activationFunction)(float);
+    switch (_activationFunction) {
+        case SIGMOID:
+            activationFunction = sigmoidDerivative;
+            break;
+        case RELU:
+            activationFunction = reluDerivative;
+            break;
+        case SOFTMAX:
+            activationFunction = softmaxDerivative;
+            break;
+        default:
+            activationFunction = sigmoidDerivative;
+            std::cerr << "Requested activation function doesn't exist reverting to sigmoid" << std::endl;
+    }
+    return matrix.unaryExpr(activationFunction);
 }
 
-Eigen::MatrixXf sigmoidDerivativeMatrix(Eigen::MatrixXf& z) {
-    return z.unaryExpr(&sigmoidDerivative);
-}
 
-float sigmoidDerivative(float z) {
-    return z * (1 - z);
+
+/**
+ * Applies the activation function to a input matrix elementwise
+ * @param input, the _z matrix obtained from applying the weights and bias
+ */
+void NeuralNetwork::applyActivationFunction(Eigen::MatrixXf& input) {
+//    int (*minus)(int,int) = subtraction;
+    float (*activationFunction)(float);
+    switch (_activationFunction) {
+        case SIGMOID:
+            activationFunction = sigmoid;
+            break;
+        case RELU:
+            activationFunction = relu;
+            break;
+        case SOFTMAX:
+            activationFunction = softmax;
+            break;
+        default:
+            activationFunction = sigmoid;
+            std::cerr << "Requested activation function doesn't exist reverting to sigmoid" << std::endl;
+    }
+    input = input.unaryExpr(activationFunction);
 }
-float sigmoid(float z) {
+/**
+ * These are the activation functions and their derivatives
+ * These functions need to prototyped and added to applyActivationFunction
+ * and applyDerivativeActivationFunction
+ */
+
+/**
+ * Sigmoid function
+ * @param z
+ * @return
+ */
+static float sigmoid(float z) {
     return 1.f/(1.f + expf(-z));
 }
-void NeuralNetwork::applyActivationFunction(Eigen::MatrixXf& input) {
-    int i, j;
-    for (i = 0; i < input.rows(); i ++ ) {
-        for (j = 0; j < input.cols(); j++) {
-            input(i, j) = sigmoid(input(i, j));
-        }
-    }
+static float sigmoidDerivative(float z) {
+    return z * (1 - z);
 }
+static float relu(float z) {
+    return 1.f/(1.f + expf(-z));
+}
+static float reluDerivative(float z) {
+    return 1.f/(1.f + expf(-z));
+}
+static float softmax(float z) {
+    return 1.f/(1.f + expf(-z));
+}
+static float softmaxDerivative(float z) {
+    return 1.f/(1.f + expf(-z));
+}
+

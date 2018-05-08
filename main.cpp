@@ -26,17 +26,19 @@
 #include "debug.hpp"
 
 #include "NeuralNetwork.hpp"
-
-void generateSinData(Eigen::MatrixXf& in, int inputSize, Eigen::MatrixXf& out, int outputSize) {
-    int datapoints = 100, i;
+/**
+ * Generate testing data to test the neural network
+ */
+void generateSinData(Eigen::MatrixXf& in, int inputSize, Eigen::MatrixXf& out, int outputSize, int datapoints) {
+    int i;
     Eigen::MatrixXf input(inputSize, datapoints);
     Eigen::MatrixXf output(outputSize, datapoints);
     std::random_device rd;
-    std::mt19937 gen(1);//should be rd() instead of 0
+    std::mt19937 gen(rd());//should be rd() instead of 0
     std::uniform_real_distribution<> dis(0, M_PI);
     for (i = 0 ; i < datapoints; i++) {
         input(0, i) = (float) dis(gen);
-        output(0, i) = (sinf(input(0, i)) + 1) * 0.5f;
+        output(0, i) = (sinf(input(0, i)));
     }
     in = input;
     out = output;
@@ -92,30 +94,41 @@ void generateBasicDataXOR(Eigen::MatrixXf& in, int inputSize, Eigen::MatrixXf& o
               0, 1, 1;
     in = input;
     out = output;
+    std::cout << "Generating test data for XOR" << std::endl;
 }
+/**
+ * Testing the neural network using the constructed Neural network class
+ * @return
+ */
 int main() {
     Eigen::MatrixXf input, expectedOutput;
-//    std::vector<int> layers = {2, 1, 4, 2};
-//    generateBasicDataXOR(input, layers[0], expectedOutput, layers[layers.size() - 1]);
-    std::vector<int> layers = {1, 4, 2, 1};
-    generateSinData(input, layers[0], expectedOutput, layers[layers.size() - 1]);
-
+    std::vector<int> layers = {2, 1, 4, 2};
+    generateBasicDataXOR(input, layers[0], expectedOutput, layers[layers.size() - 1]);
+//    std::vector<int> layers = {1, 4, 2, 1};
 //    generateBasicData(input, layers[0], expectedOutput, layers[layers.size() - 1]);
 //    generateBasicData2(input, layers[0], expectedOutput, layers[layers.size() - 1]);
     Eigen::MatrixXf output(expectedOutput.rows(), expectedOutput.cols());
-    std::cout << "Input" << std::endl << input << std::endl;
-    NeuralNetwork neuralNetwork(layers, 0.4);
-    std::cout << "Size input: " << input.rows() << " " << input.cols() << std::endl;
-    std::cout << "Size ExpectedOutput: " << expectedOutput.rows() << " " << expectedOutput.cols() << std::endl;
-    std::cout << "Size output: " << output.rows() << " " << output.cols() << std::endl;
-//    std::cout << neuralNetwork._weights << std::endl;
+    NeuralNetwork neuralNetwork(layers, 0.5);
+    neuralNetwork.setActivationFunction(NeuralNetwork::ACTIVATION::RELU);
+//    generateSinData(input, layers[0], expectedOutput, layers[layers.size() - 1], 200);
     neuralNetwork.predict(input, output);
-    neuralNetwork.train(input, expectedOutput, 100000);
+    debug_print("Before Training");
+    debug_print("Output");
+    debug_print(output);
+    debug_print("Expected");
+    debug_print(expectedOutput);
+    long iteration;
+    debug_print("Training");
+    for(iteration = 0l; iteration < 10000; iteration++) {
+        neuralNetwork.train(input, expectedOutput, iteration%1000 == 0);
+    }
+    debug_print("Training Complete");
+//    generateSinData(input, layers[0], expectedOutput, layers[layers.size() - 1], 10000);
+    debug_print("Prediction on trained data");
     neuralNetwork.predict(input, output);
-    std::cout << "Input" << std::endl << input << std::endl;
-    std::cout << "Output" << std::endl << output << std::endl;
-    std::cout << "Expected Output" << std::endl << expectedOutput << std::endl;
 
+
+    //Write data to file for graphing using graphTool.py
     std::ofstream file;
     file.open("data.txt");
     file << "input" << std::endl;
@@ -130,5 +143,7 @@ int main() {
     debug_print(input);
     debug_print("Output");
     debug_print(output);
+    debug_print("ExpectedOutput");
+    debug_print(expectedOutput);
     return 0;
 }

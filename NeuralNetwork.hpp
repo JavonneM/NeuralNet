@@ -26,8 +26,29 @@
 #define NEURALNETWORK_NEURALNETWORK_HPP
 #include "debug.hpp"
 #include <Eigen/Dense>
+/**
+ * Headers for the neural network class
+ *
+ *
+ *
+ *
+ */
+/**
+ * Explaination
+ * The weight matrix _weights is an vector of matrices
+ * Each element in a row is the incoming weight to a particular node ie
+ * a row contains the weights incident on the next neuron
+ *
+ * This allows the propergation to be performed by computing _w * _a
+ * Where _w is the weight matrix and _a is the input from the previous layer
+ *
+ * In this _a is the output from the current layer and the input to the next layer
+ * _z is the input with out the activation function applied to it, for the backpropergation algorithm
+ *
+ */
 class NeuralNetwork {
 public:
+    enum ACTIVATION {SIGMOID, RELU, SOFTMAX};
     /**
      * Initialises the neural network with a vector of the size of each layer.
      * @param layers, the size of each layer stored in a vector.
@@ -40,13 +61,15 @@ public:
      * @param output, the expected output data <Output layer> x <datapoints>.
      * @param iterations, the number of iterations that the network should train for.
      */
-    void train(Eigen::MatrixXf& input, Eigen::MatrixXf& expectedOutput, long iterations);
+    void train(Eigen::MatrixXf& input, Eigen::MatrixXf& expectedOutput, bool printIteration=false);
     /**
      * Use the network to predict the output using the input
      * @param input, the input is a matrix of <datapoints> x <Input layer>.
      * @param output, the output of the neural network <Output layer> x <datapoints>.
      */
-    void predict(Eigen::MatrixXf input, Eigen::MatrixXf& output);
+    void predict(Eigen::MatrixXf& input, Eigen::MatrixXf& output);
+    void setActivationFunction(ACTIVATION);
+    ACTIVATION getActivationFunction();
     /**
      * Returns the number of neurons in the input layer.
      * @return int.
@@ -62,6 +85,8 @@ public:
      * @return
      */
     unsigned long getLayerSize();
+
+
 
 private:
     /**
@@ -98,20 +123,31 @@ private:
      */
     Eigen::MatrixXf applyDerivativeActivationFunction(Eigen::MatrixXf& matrix);
 
+
     float _learningRate = 1;
     std::vector<Eigen::MatrixXf> _weights;
     std::vector<Eigen::VectorXf> _bias;
     std::vector<Eigen::MatrixXf> _delta;
     std::vector<Eigen::MatrixXf> _deltaW;
     std::vector<Eigen::VectorXf> _deltaB;
-    std::vector<Eigen::MatrixXf> _z;
-    std::vector<Eigen::MatrixXf> _a;
+    std::vector<Eigen::MatrixXf> _z; //This is the output after applying the weights and bias (the output of the layer without the actviation function)
+    std::vector<Eigen::MatrixXf> _a; //This is the output after applying the weights, bias and activation function, (the output of the layer)
     std::vector<int> _layersSize;
+    ACTIVATION _activationFunction = SIGMOID;
 
 };
-Eigen::MatrixXf sigmoidDerivativeMatrix(Eigen::MatrixXf& z);
-float sigmoidDerivative(float z);
-float sigmoid(float z);
+
+/**
+ * TODO Move these activation functions somewhere more logical
+ *
+ */
+//static Eigen::MatrixXf sigmoidDerivativeMatrix(Eigen::MatrixXf& z);
+static float sigmoid(float z);
+static float sigmoidDerivative(float z);
+static float relu(float z);
+static float reluDerivative(float z) ;
+static float softmax(float z);
+static float softmaxDerivative(float z);
 
 
 #endif //NEURALNETWORK_NEURALNETWORK_HPP
